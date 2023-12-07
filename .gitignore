@@ -8,3 +8,5 @@
 
 engines/alumnos
 tournaments/1vs1/
+tournaments/todos/
+.csv

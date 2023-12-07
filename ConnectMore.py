@@ -47,10 +47,13 @@ class App(Frame):
         #Current game
         self.currentGame = self.predefGame
         #Time
-        self.currentTime = time.process_time()
+        self.currentTime = time.perf_counter()
         
         #Tournament
         self.tournament = Tournament()
+        
+        #Timeout de motor
+        self.timeout = 20
 
         self.initResource();
 
@@ -428,6 +431,12 @@ class App(Frame):
             self.updateStatus();
             if move != None:
                 break;
+                
+            #Check timeout
+            c_time = time.perf_counter()
+            t_delayed = c_time - self.currentTime
+            if t_delayed > self.timeout:
+                raise Exception("Timeout")
             
         return move
 
@@ -467,6 +476,18 @@ class App(Frame):
                     sleep(0.1)
             except Exception as e:
                 print('Exception when searching: ' + str(e));
+                #Decide the win by opponent's exception
+                if self.gameState == GameState.WaitForEngine:
+                    color = self.nextColor()
+                    self.winner = color;
+                    self.toGameState(GameState.Win);
+                    if color == Move.BLACK:
+                        if self.showDisplayMsg:
+                            messagebox.showinfo("White Win", "White Win by Black exception ;)")
+                    else:
+                        if self.showDisplayMsg:
+                            messagebox.showinfo("Black Win", "Black Win by Black exception ;)")
+                    
                 sleep(0.5);
 
     def updateStatus(self):
@@ -567,7 +588,7 @@ class App(Frame):
         self.setBotNames()
         
         mode, next_state = self.currentGame.get_game_state()
-        self.currentTime = time.process_time()
+        self.currentTime = time.perf_counter()
         self.toGameMode(mode)
         self.toGameState(next_state)
 
@@ -596,7 +617,7 @@ class App(Frame):
         if move.isValidated():
             if(self.gameState != GameState.Win and self.gameState != GameState.Draw):
                 #Calculate time spent
-                t_end = time.process_time()
+                t_end = time.perf_counter()
                 t_delayed = t_end - self.currentTime
                 self.times.append(t_delayed)
                 
@@ -608,7 +629,7 @@ class App(Frame):
                     move.x2 = move.x1
                     move.y2 = move.y1
                     
-        self.currentTime = time.process_time()
+        self.currentTime = time.perf_counter()
             # print('Made move:', move);
         return move;
 
