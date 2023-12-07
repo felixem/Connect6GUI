@@ -479,12 +479,13 @@ class App(Frame):
                 #Decide the win by opponent's exception
                 if self.gameState == GameState.WaitForEngine:
                     color = self.nextColor()
-                    self.winner = color;
                     self.toGameState(GameState.Win);
                     if color == Move.BLACK:
+                        self.winner = Move.WHITE;
                         if self.showDisplayMsg:
                             messagebox.showinfo("White Win", "White Win by Black exception ;)")
                     else:
+                        self.winner = Move.BLACK;
                         if self.showDisplayMsg:
                             messagebox.showinfo("Black Win", "Black Win by Black exception ;)")
                     
