@@ -82,6 +82,7 @@ class Game:
         self.result = -1
         self.moves = []
         self.times = []
+        self.feedback = ""
         
     def release(self):
         self.black.release()
@@ -89,6 +90,7 @@ class Game:
         self.result = -1
         self.moves = []
         self.times = []
+        self.feedback = ""
         
     def is_ready(self):
         return self.black.is_ready(), self.white.is_ready()
@@ -233,6 +235,8 @@ class Tournament:
             f.write(white.name)
             f.write(",")
             f.write(str(game.result))
+            f.write(",")
+            f.write(str(game.feedback))
             f.write(",")
             
             #Write moves

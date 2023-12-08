@@ -53,7 +53,7 @@ class App(Frame):
         self.tournament = Tournament()
         
         #Timeout de motor
-        self.timeout = 20
+        self.timeout = 25
 
         self.initResource();
 
@@ -482,10 +482,12 @@ class App(Frame):
                     self.toGameState(GameState.Win);
                     if color == Move.BLACK:
                         self.winner = Move.WHITE;
+                        self.feedback = str(e)
                         if self.showDisplayMsg:
                             messagebox.showinfo("White Win", "White Win by Black exception ;)")
                     else:
                         self.winner = Move.BLACK;
+                        self.feedback = str(e)
                         if self.showDisplayMsg:
                             messagebox.showinfo("Black Win", "Black Win by Black exception ;)")
                     
@@ -516,6 +518,7 @@ class App(Frame):
             self.currentGame.moves = self.moveList
             self.currentGame.times = self.times
             self.currentGame.result = self.winner
+            self.currentGame.feedback = self.feedback
             
             nextGame = self.tournament.next_game()
                             
@@ -649,6 +652,7 @@ class App(Frame):
         
         if self.connectedBy(x, y):
             self.winner = color;
+            self.feedback = "connect 6"
             self.toGameState(GameState.Win);
             if color == Move.BLACK:
                 if self.showDisplayMsg:
@@ -661,6 +665,7 @@ class App(Frame):
         self.remainingMoves = self.remainingMoves-1;   
         if self.remainingMoves == 0:
             self.winner = Move.NONE;
+            self.feedback = "board completed"
             self.toGameState(GameState.Draw);
             if self.showDisplayMsg:
                 messagebox.showinfo("Draw", "Draw ;) Impressive!")
