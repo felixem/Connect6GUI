@@ -623,21 +623,27 @@ class App(Frame):
                 self.times.append(t_delayed)
                 
                 self.addToMoveList(move);
+                self.currentTime = time.perf_counter()
+                
                 nextValidMove = self.placeStone(move.color, move.x1, move.y1);
                 if(nextValidMove):
                     self.placeStone(move.color, move.x2, move.y2);
                 else:
-                    move.x2 = move.x1
-                    move.y2 = move.y1
+                    if(len(self.moveList) == 1):
+                        move.x2 = move.x1
+                        move.y2 = move.y1
+                    else:
+                        raise Exception("Repeated move")
                     
-        self.currentTime = time.perf_counter()
             # print('Made move:', move);
+        else:
+            raise Exception("Impossible move")
         return move;
 
     def placeStone(self, color, x, y):
         #Check illegal move
         if not self.isNoneStone(x, y):
-            return True
+            return False
     
         self.placeColor(color, x, y, 't');
         
