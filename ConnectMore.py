@@ -26,6 +26,13 @@ import time
 
 if os.name == 'nt':
     from subprocess import STARTUPINFO;
+    
+class PlaceStoneStatus:
+    Correct = 0
+    Connect6 = 1
+    DuplicatedMove = -1
+    ImpossibleMove = -2
+    FullBoard = 2
 
 class App(Frame):
     
@@ -53,7 +60,7 @@ class App(Frame):
         self.tournament = Tournament()
         
         #Timeout de motor
-        self.timeout = 25
+        self.timeout = 30
 
         self.initResource();
 
@@ -208,6 +215,7 @@ class App(Frame):
         self.showDisplayMsg = True
         self.tournament = Tournament()
         self.newGame()
+        self.winner = -1
         
     def setBlackHuman(self):
         self.predefGame.black = HumanPlayer()
@@ -233,7 +241,7 @@ class App(Frame):
         print('Load tournament file:', path);
         if len(path) > 0:
             try:
-                self.tournament = RoundRobinTournament()
+                self.tournament = RoundRobinTournament(1)
                 self.tournament.load_from_file(path)
                 print('Tournament loaded with ' + str(len(self.tournament.players)) + ' players')
             except Exception as e:
@@ -442,6 +450,7 @@ class App(Frame):
 
     #Threaded search
     def searching(self):
+        currentTurn = -1
         while True:
             try:
                 if self.gameState == GameState.Exit:
@@ -457,30 +466,31 @@ class App(Frame):
                             else:
                                 currEngine = self.currentGame.white.engine;
                                 
+                            currentTurn = color
+                            currEngine.color = color;
                             currEngine.next(self.moveList);
                             move = self.waitForMove(currEngine);
-                            currEngine.color = move.color;
+                            #print(move)
                                 
                             if(self.gameState != GameState.Win and self.gameState != GameState.Draw and self.gameState != GameState.Idle):
                                 self.makeMove(move);
                                 if self.gameState == GameState.WaitForEngine and self.gameMode == GameState.AI2Human:
                                     self.toGameState(GameState.WaitForHumanFirst);
                                     
-                            sleep(0.05)
+                            sleep(0.2)
                             
                         else:
-                            sleep(0.1);
+                            sleep(0.2);
                     else:
                         sleep(0.2);
                 else:
-                    sleep(0.1)
+                    sleep(0.2)
             except Exception as e:
                 print('Exception when searching: ' + str(e));
                 #Decide the win by opponent's exception
+                #print("Game state:", self.gameState)
                 if self.gameState == GameState.WaitForEngine:
-                    color = self.nextColor()
-                    self.toGameState(GameState.Win);
-                    if color == Move.BLACK:
+                    if currentTurn == Move.BLACK:
                         self.winner = Move.WHITE;
                         self.feedback = str(e)
                         if self.showDisplayMsg:
@@ -490,6 +500,8 @@ class App(Frame):
                         self.feedback = str(e)
                         if self.showDisplayMsg:
                             messagebox.showinfo("Black Win", "Black Win by Black exception ;)")
+                            
+                self.toGameState(GameState.Win);
                     
                 sleep(0.5);
 
@@ -528,6 +540,7 @@ class App(Frame):
                 self.currentGame = nextGame
                 sleep(1.0)
                 self.newGame()
+                sleep(1.0)
             
         elif self.gameState == GameState.WaitForHumanFirst:
             msg = 'Move the first...';
@@ -576,6 +589,7 @@ class App(Frame):
         self.botPlayerBlack.release();
         self.botPlayerWhite.release();
         self.currentGame.release();
+        self.winner = -1
         
         self.initBoard();
         
@@ -618,41 +632,44 @@ class App(Frame):
                 self.placeColor(m.color, m.x2, m.y2, 't');
 
     def makeMove(self, move):
-        if move.isValidated():
-            if(self.gameState != GameState.Win and self.gameState != GameState.Draw):
-                #Calculate time spent
-                t_end = time.perf_counter()
-                t_delayed = t_end - self.currentTime
-                self.times.append(t_delayed)
-                
-                self.addToMoveList(move);
-                self.currentTime = time.perf_counter()
-                
-                nextValidMove = self.placeStone(move.color, move.x1, move.y1);
-                if(nextValidMove):
-                    self.placeStone(move.color, move.x2, move.y2);
-                else:
-                    if(len(self.moveList) == 1):
-                        move.x2 = move.x1
-                        move.y2 = move.y1
-                    else:
-                        raise Exception("Repeated move")
+        if(self.gameState != GameState.Win and self.gameState != GameState.Draw):
+            #Calculate time spent
+            t_end = time.perf_counter()
+            t_delayed = t_end - self.currentTime
+            self.currentTime = time.perf_counter()      
+            
+            #Add to history
+            self.times.append(t_delayed)
+            self.addToMoveList(move);
+                 
+            #Check move
+            if move.isValidated():  
                     
-            # print('Made move:', move);
-        else:
-            raise Exception("Impossible move")
+                    nextValidMove, placeStoneStatus = self.placeStone(move.color, move.x1, move.y1);
+                    if(nextValidMove):
+                        nextValidMove, placeStoneStatus = self.placeStone(move.color, move.x2, move.y2);
+                        
+                    if(not (nextValidMove)):
+                        if(placeStoneStatus == PlaceStoneStatus.DuplicatedMove):
+                            if(len(self.moveList) > 1):
+                                raise Exception("Try duplicated move")
+                        
+                        
+                # print('Made move:', move);
+            else:
+                raise Exception("Try impossible move")
         return move;
 
     def placeStone(self, color, x, y):
         #Check illegal move
         if not self.isNoneStone(x, y):
-            return False
+            return False, PlaceStoneStatus.DuplicatedMove
     
         self.placeColor(color, x, y, 't');
         
         if self.connectedBy(x, y):
             self.winner = color;
-            self.feedback = "connect 6"
+            self.feedback = "Connect 6"
             self.toGameState(GameState.Win);
             if color == Move.BLACK:
                 if self.showDisplayMsg:
@@ -660,18 +677,18 @@ class App(Frame):
             else:
                 if self.showDisplayMsg:
                     messagebox.showinfo("White Win", "White Win ;) Impressive!")
-            return False
+            return False, PlaceStoneStatus.Connect6
              
         self.remainingMoves = self.remainingMoves-1;   
         if self.remainingMoves == 0:
             self.winner = Move.NONE;
-            self.feedback = "board completed"
+            self.feedback = "Full board"
             self.toGameState(GameState.Draw);
             if self.showDisplayMsg:
                 messagebox.showinfo("Draw", "Draw ;) Impressive!")
-            return False
+            return False, PlaceStoneStatus.FullBoard
             
-        return True
+        return True, PlaceStoneStatus.Correct
 
     def placeColor(self, color, x, y, extra = ''):
         if color == Move.BLACK:

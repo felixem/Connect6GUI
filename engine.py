@@ -9,6 +9,7 @@ class Move:
     BLACK = 1;
     WHITE = 2;
     EDGE = 19;
+    
     def __init__(self, color = NONE, x1 = -1, y1 = -1, x2 = -1, y2 = -1):
         self.color = color;
         self.x1 = x1;

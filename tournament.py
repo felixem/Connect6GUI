@@ -69,7 +69,7 @@ class BotPlayer(Player):
         return self.engine.name;
         
     def start_player(self, move, level, vcf):
-        self.init_engine(level,vcf, move)
+        self.init_engine(level,vcf,move)
         return
         
     def is_ready(self):
@@ -250,11 +250,7 @@ class Tournament:
                 f.write(str(t))
                 f.write(" ")
             
-            f.write('\n')
-            
-        
-            
-            
+            f.write('\n') 
         
 class RoundRobinTournament(Tournament):
     def __init__(self, repetitions = 1):
