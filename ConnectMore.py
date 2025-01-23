@@ -444,7 +444,7 @@ class App(Frame):
             c_time = time.perf_counter()
             t_delayed = c_time - self.currentTime
             if t_delayed > self.timeout:
-                raise Exception("Timeout")
+                raise TimeoutMoveException()
             
         return move
 
@@ -491,13 +491,15 @@ class App(Frame):
                 #print("Game state:", self.gameState)
                 if self.gameState == GameState.WaitForEngine:
                     if currentTurn == Move.BLACK:
-                        self.winner = Move.WHITE;
+                        self.winner = Move.WHITE
                         self.feedback = str(e)
+                        self.error = e
                         if self.showDisplayMsg:
                             messagebox.showinfo("White Win", "White Win by Black exception ;)")
                     else:
-                        self.winner = Move.BLACK;
+                        self.winner = Move.BLACK
                         self.feedback = str(e)
+                        self.error = e
                         if self.showDisplayMsg:
                             messagebox.showinfo("Black Win", "Black Win by Black exception ;)")
                             
@@ -531,6 +533,7 @@ class App(Frame):
             self.currentGame.times = self.times
             self.currentGame.result = self.winner
             self.currentGame.feedback = self.feedback
+            self.currentGame.error = self.error
             
             nextGame = self.tournament.next_game()
                             
@@ -640,7 +643,7 @@ class App(Frame):
             
             #Add to history
             self.times.append(t_delayed)
-            self.addToMoveList(move);
+            self.addToMoveList(move)
                  
             #Check move
             if move.isValidated():  
@@ -652,25 +655,26 @@ class App(Frame):
                     if(not (nextValidMove)):
                         if(placeStoneStatus == PlaceStoneStatus.DuplicatedMove):
                             if(len(self.moveList) > 1):
-                                raise Exception("Try duplicated move")
+                                raise DuplicatedMoveException(move)
                         
                         
                 # print('Made move:', move);
             else:
-                raise Exception("Try impossible move")
-        return move;
+                raise InvalidMoveException(move)
+        return move
 
     def placeStone(self, color, x, y):
         #Check illegal move
         if not self.isNoneStone(x, y):
             return False, PlaceStoneStatus.DuplicatedMove
     
-        self.placeColor(color, x, y, 't');
+        self.placeColor(color, x, y, 't')
         
         if self.connectedBy(x, y):
-            self.winner = color;
+            self.winner = color
             self.feedback = "Connect 6"
-            self.toGameState(GameState.Win);
+            self.error = None
+            self.toGameState(GameState.Win)
             if color == Move.BLACK:
                 if self.showDisplayMsg:
                     messagebox.showinfo("Black Win", "Black Win ;) Impressive!")
@@ -683,6 +687,7 @@ class App(Frame):
         if self.remainingMoves == 0:
             self.winner = Move.NONE;
             self.feedback = "Full board"
+            self.error = None
             self.toGameState(GameState.Draw);
             if self.showDisplayMsg:
                 messagebox.showinfo("Draw", "Draw ;) Impressive!")

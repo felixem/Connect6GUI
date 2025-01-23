@@ -1,5 +1,27 @@
 from engine import *
 
+class MoveExceptionType:
+    TIMEOUT = -1
+    INVALID_MOVE = -2
+    DUPLICATED_MOVE = -3
+
+class MoveException(Exception):
+    def __init__(self, type, message):
+        super().__init__(message)
+        self.type = type
+
+class TimeoutMoveException(MoveException):
+    def __init__(self):
+        super().__init__(MoveExceptionType.TIMEOUT, "Timeout")
+
+class InvalidMoveException(MoveException):
+    def __init__(self, move):
+        super().__init__(MoveExceptionType.INVALID_MOVE, "Try impossible move " + str(move))
+
+class DuplicatedMoveException(MoveException):
+    def __init__(self, move):
+        super().__init__(MoveExceptionType.DUPLICATED_MOVE, "Try duplicated move " + str(move))
+
 class GameState:
 
     Exit = -1;
@@ -83,6 +105,7 @@ class Game:
         self.moves = []
         self.times = []
         self.feedback = ""
+        self.error = None
         
     def release(self):
         self.black.release()
@@ -91,6 +114,7 @@ class Game:
         self.moves = []
         self.times = []
         self.feedback = ""
+        self.error = None
         
     def is_ready(self):
         return self.black.is_ready(), self.white.is_ready()
@@ -147,6 +171,9 @@ class Tournament:
         #Calculate scores for every player
     def calculate_scores(self):
         scores = [0] * len(self.players)
+        timeouts = [0] * len(self.players)
+        incorrect_moves = [0] * len(self.players)
+        cross_table = [[0 for i in range(len(self.players))] for j in range(len(self.players))]
         
         for game in self.games:
             idb = game.black.id
@@ -155,12 +182,26 @@ class Tournament:
             if game.result == Move.NONE:
                 scores[idb] += 1
                 scores[idw] += 1
+                cross_table[idb][idw] += 1
+                cross_table[idw][idb] += 1
             elif game.result == Move.BLACK:
                 scores[idb] += 2
+                cross_table[idb][idw] += 2
+                if game.error is not None:
+                    if game.error.type == MoveExceptionType.TIMEOUT:
+                        timeouts[idw] += 1
+                    else:
+                        incorrect_moves[idw] += 1
             elif game.result == Move.WHITE:
                 scores[idw] += 2
+                cross_table[idw][idb] += 2
+                if game.error is not None:
+                    if game.error.type == MoveExceptionType.TIMEOUT:
+                        timeouts[idb] += 1
+                    else:
+                        incorrect_moves[idb] += 1
         
-        return scores
+        return scores, timeouts, incorrect_moves, cross_table
         
     #Calculate tie-breaker
     def calculate_bucholtz(self, scores):
@@ -182,17 +223,33 @@ class Tournament:
     
     #Get final clasification   
     def get_classification(self):
-        scores = self.calculate_scores()
+        scores, timeouts, incorrect_moves, cross_table = self.calculate_scores()
         bucholtz = self.calculate_bucholtz(scores)
         
         tuples = []
         for i in range(0, len(scores)):
-            tuples.append((self.players[i], scores[i], bucholtz[i]))
+            tuples.append((self.players[i], scores[i], bucholtz[i], timeouts[i], incorrect_moves[i]))
         
         #Sort by score and bucholtz as tie-breaker
         sorted_list = sorted(tuples, key=lambda x: (x[1], x[2]), reverse=True)
+
+        #Sort cross table by position in sorted list
+        sorted_cross_table = self.order_cross_table(cross_table, sorted_list)
         
-        return sorted_list
+        return sorted_list, sorted_cross_table
+    
+    #Order cross table by position in sorted list
+    def order_cross_table(self, cross_table, classification):
+        ordered = [[0 for i in range(len(self.players))] for j in range(len(self.players))]
+        
+        for i in range(0, len(classification)):
+            player, _, _, _, _ = classification[i]
+            for j in range(i, len(classification)):
+                player2, _, _, _, _ = classification[j]
+                ordered[i][j] = cross_table[player.id][player2.id]
+                ordered[j][i] = cross_table[player2.id][player.id]
+                
+        return ordered
         
     def save_results(self, f):
         #Print players
@@ -206,9 +263,9 @@ class Tournament:
         
         #Print classification
         f.write('Classification:\n')
-        classification = self.get_classification()
+        classification, cross_table = self.get_classification()
         for i in range(0, len(classification)):
-            player, score, bucholtz = classification[i]
+            player, score, bucholtz, timeouts, incorrect_moves = classification[i]
             f.write(str(i+1))
             f.write(",")
             f.write(str(player.id))
@@ -218,8 +275,40 @@ class Tournament:
             f.write(str(score))
             f.write(",")
             f.write(str(bucholtz))
-            f.write(";")
+            f.write(",")
+            f.write(str(timeouts))
+            f.write(",")
+            f.write(str(incorrect_moves))
+            f.write(",")
+            f.write("\n")
+
+        #Print cross table results
+        f.write('Cross table results:\n')
+        f.write("RK,PLAYER,")
+        for i in range(0, len(cross_table)):
+            f.write(str(i+1))
+            f.write(",")
+        f.write('PTS,')
+        f.write('TIEBREAK,')
+        f.write('TIMEOUTS,')
+        f.write('INCORRECT')
         f.write("\n")
+        for i in range(0, len(cross_table)):
+            f.write(str(i+1))
+            f.write(",")
+            f.write(classification[i][0].name)
+            f.write(",")
+            for j in range(0, len(cross_table[i])):
+                f.write(str(cross_table[i][j]))
+                f.write(",")
+            f.write(str(classification[i][1]))
+            f.write(",")
+            f.write(str(classification[i][2]))
+            f.write(",")
+            f.write(str(classification[i][3]))
+            f.write(",")
+            f.write(str(classification[i][4]))
+            f.write("\n")
         
         #Print games
         f.write('Games:\n')
