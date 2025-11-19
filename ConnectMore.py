@@ -238,7 +238,7 @@ class App(Frame):
         
     def loadTournament(self):
         path = filedialog.askopenfilename(title='Load tournament file ', initialdir='tournaments');
-        print('Load tournament file:', path);
+        print('Loading tournament file:', path);
         if len(path) > 0:
             try:
                 self.tournament = RoundRobinTournament(1)

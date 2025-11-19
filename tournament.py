@@ -383,11 +383,13 @@ class PlayerReader:
             player.path = line.strip()
             
             try:
+                print('Loading engine: ' + player.path);
                 player.start_player(Move.BLACK, 1, True);
                 player.release()
                 players.append(player)
                 player.id = idx
                 idx = idx+1
+                print('Engine loaded successfully: ' + player.path);
             except Exception as e:
                 print("Error to load the engine: " + player.path + ", errors: " + str(e));
              
